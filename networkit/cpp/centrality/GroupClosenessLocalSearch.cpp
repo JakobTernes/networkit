@@ -46,12 +46,18 @@ public:
     GroupClosenessLocalSearchImpl(const Graph &G, InputIt initGroupFirst, InputIt initGroupLast,
                                   bool runGrowShrink, count maxIterations);
 
+    template <class InputIt>
+    GroupClosenessLocalSearchImpl(const Graph &G, InputIt initGroupFirst, InputIt initGroupLast,
+                                    std::vector<int> reduction,
+                                  bool runGrowShrink, count maxIterations);
+
     void run() override;
 
 private:
     const Graph *G;
     const bool runGrowShrink;
     const count maxIterations;
+    std::vector<int> reduction;
 
     // Shortest and 2nd shortest distance between the group to all the nodes
     std::vector<WeightType> distance, distance2;
@@ -155,6 +161,26 @@ GroupClosenessLocalSearchImpl<WeightType>::GroupClosenessLocalSearchImpl(const G
                                                                          bool runGrowShrink,
                                                                          count maxIterations)
     : GroupClosenessLocalSearchInterface(initGroupFirst, initGroupLast), G(&G),
+      runGrowShrink(runGrowShrink), maxIterations(maxIterations),
+      heap(Aux::LessInVector<WeightType>(distance)),
+      heap2(Aux::LessInVector<WeightType>(distance2)),
+      candidatesToAdd(Aux::GreaterInVector<float>(approxFarnessDecrease)),
+      candidatesToRemove(Aux::LessInVector<WeightType>(farnessIncrease)) {
+
+    if (group.empty())
+        throw std::runtime_error("Error, empty group.");
+}
+
+template <class WeightType>
+template <class InputIt>
+GroupClosenessLocalSearchImpl<WeightType>::GroupClosenessLocalSearchImpl(const Graph &G,
+                                                                         InputIt initGroupFirst,
+                                                                         InputIt initGroupLast,
+                                                                         std::vector<int> reduction,
+                                                                         bool runGrowShrink,
+                                                                         count maxIterations)
+    : GroupClosenessLocalSearchInterface(initGroupFirst, initGroupLast), G(&G),
+        reduction(reduction),
       runGrowShrink(runGrowShrink), maxIterations(maxIterations),
       heap(Aux::LessInVector<WeightType>(distance)),
       heap2(Aux::LessInVector<WeightType>(distance2)),
@@ -568,7 +594,7 @@ node GroupClosenessLocalSearchImpl<WeightType>::estimateFarnessDecrease(bool get
                     bestEstimate = estimate;
                     v = x;
                 }
-            } else if (G->degree(x) > 1) {
+            } else if (G->degree(x) > 1 && reduction[x] == -1) {
                 approxFarnessDecrease[x] = estimate;
                 candidatesToAddVec.push_back(x);
             }
@@ -1112,14 +1138,16 @@ void GroupClosenessLocalSearchImpl<edgeweight>::runSanityCheck(node v, bool para
 } // namespace
 
 GroupClosenessLocalSearch::GroupClosenessLocalSearch(const Graph &G, const std::vector<node> &group,
+                                                    std::vector<int> reduction,
                                                      bool runGrowShrink, count maxIterations)
-    : weighted(G.isWeighted()) {
+    : weighted(G.isWeighted()), reduction(reduction) {
 
     if (weighted)
         impl = std::make_unique<GroupClosenessLocalSearchImpl<edgeweight>>(
             G, group.begin(), group.end(), runGrowShrink, maxIterations);
     else
         impl = std::make_unique<GroupClosenessLocalSearchImpl<count>>(G, group.begin(), group.end(),
+                                                                        reduction,
                                                                       runGrowShrink, maxIterations);
 }
 

@@ -38,6 +38,7 @@ public:
                                     maxIterations) {}
 
     GroupClosenessLocalSearch(const Graph &G, const std::vector<node> &group,
+                              std::vector<int> reduction,
                               bool runGrowShrink = true,
                               count maxIterations = std::numeric_limits<count>::max());
 
@@ -67,6 +68,7 @@ public:
 
 private:
     const bool weighted;
+    std::vector<int> reduction;
     // Is always one between GroupClosenessLocalSearchImpl<count/edgeweight>,
     // see implementation.
     std::unique_ptr<GroupClosenessLocalSearchInterface> impl;
